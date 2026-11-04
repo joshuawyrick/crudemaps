@@ -1,5 +1,7 @@
 # Crude Maps
 
+<img src="public/brand/logo.png" alt="Crude Maps logo" width="220">
+
 A phone web app (installable on iPhone) for finding oil field locations and getting driving directions to them.
 
 - Search 560 locations by name or operator, or sort by nearest to you.

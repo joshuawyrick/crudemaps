@@ -524,7 +524,12 @@
     function select(p, pan) {
       if (sel && markers[sel.i]) { markers[sel.i].el.classList.remove('sel'); markers[sel.i].m.zIndex = null; }
       sel = p;
-      if (p && markers[p.i]) { markers[p.i].el.classList.add('sel'); markers[p.i].m.zIndex = 50000; }
+      if (p && markers[p.i]) {
+        const el = markers[p.i].el;
+        if (!el.querySelector('.pin-img')) el.insertAdjacentHTML('afterbegin', '<img class="pin-img" src="brand/pin.png" alt="">');
+        el.classList.add('sel');
+        markers[p.i].m.zIndex = 50000;
+      }
       if (p && pan && map) {
         map.panTo({ lat: p.lat, lng: p.lng });
         if (map.getZoom() < 15) map.setZoom(15);

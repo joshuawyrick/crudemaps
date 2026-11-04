@@ -1,6 +1,6 @@
 /* Crude Maps service worker: keeps the app and location list working with weak or no signal.
    Bump VERSION whenever files change so phones pick up the new copy. */
-const VERSION = 'crude-maps-v2';
+const VERSION = 'crude-maps-v3';
 const SHELL = [
   './',
   './index.html',
@@ -14,7 +14,9 @@ const SHELL = [
   './fonts/overpass-800.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/apple-touch-icon.png',
+  './brand/pin.png',
+  './brand/wordmark.png'
 ];
 
 self.addEventListener('install', event => {
