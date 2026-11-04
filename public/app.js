@@ -79,7 +79,7 @@
     me: null, lastListPos: null, gps: 'off', watchId: null,
     favs: new Set(store.get('favs', [])),
     recents: store.get('recents', []),
-    mapType: store.get('mapType', 'roadmap'),
+    mapType: store.get('mapType', 'hybrid'),
     traffic: store.get('traffic', false),
     labels: store.get('labels', true),
     voice: store.get('voice', true)

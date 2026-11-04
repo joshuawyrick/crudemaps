@@ -6,7 +6,7 @@ A phone web app (installable on iPhone) for finding oil field locations and gett
 - Pick a location and tap **Get directions** to see the route on a Google map, with a step list.
 - Tap **Start** for live turn-by-turn guidance with voice. The screen stays on while you drive.
 - When a pin is past the end of the mapped roads, a dashed line shows the last stretch.
-- Map layers: Map, Satellite, Hybrid, Terrain, plus Traffic and location names.
+- Map layers: Hybrid (the default), Map, Satellite, Terrain, plus Traffic and location names.
 - Hand off to Google Maps, Apple Maps or Waze with one tap.
 - Star locations to keep them on the Saved tab. The list works offline once the app has loaded.
 
