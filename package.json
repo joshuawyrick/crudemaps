@@ -1,0 +1,13 @@
+{
+  "name": "crude-maps",
+  "version": "1.0.0",
+  "description": "Crude Maps: find oil field locations and get driving directions. Installable on iPhone as a web app.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

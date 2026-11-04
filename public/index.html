@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crude Maps</title>
+<meta name="description" content="Find oil field locations and get driving directions.">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light only">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Crude Maps">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/overpass-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/overpass-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+      <rect width="512" height="512" rx="112" fill="#00703C"/>
+      <rect x="30" y="30" width="452" height="452" rx="86" fill="none" stroke="#fff" stroke-width="18"/>
+      <path fill="#fff" d="M256 418s-118-128-118-204a118 118 0 0 1 236 0c0 76-118 204-118 204z"/>
+      <path fill="#18202A" d="M256 142s-46 56-46 86a46 46 0 0 0 92 0c0-30-46-86-46-86z"/>
+    </svg>
+    <span class="wordmark">Crude Maps</span>
+  </div>
+  <button class="gps" id="gps" type="button" data-state="off">
+    <span class="gps-dot" aria-hidden="true"></span><span id="gps-text">Use my location</span>
+  </button>
+</header>
+
+<main class="views">
+
+  <section class="view" id="view-list" aria-label="Locations">
+    <div class="controls">
+      <label class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Search locations or operators" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search locations or operators">
+        <button type="button" class="clear" id="q-clear" aria-label="Clear search" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </label>
+      <div class="filters">
+        <select id="op" aria-label="Filter by operator"></select>
+        <div class="seg" role="group" aria-label="Sort">
+          <button type="button" data-sort="near" aria-pressed="false">Nearest</button>
+          <button type="button" data-sort="az" aria-pressed="true">A–Z</button>
+        </div>
+      </div>
+    </div>
+    <div class="banner" id="install" hidden></div>
+    <div class="banner" id="loc-hint" hidden>
+      <p id="loc-hint-text">Turn on location to see the nearest locations first.</p>
+      <button type="button" class="btn btn-sm" id="loc-btn">Use my location</button>
+    </div>
+    <p class="count" id="count"></p>
+    <ul class="rows" id="rows"></ul>
+    <div class="empty" id="empty" hidden>
+      <p id="empty-text"></p>
+      <button type="button" class="btn btn-sm" id="empty-clear">Clear search</button>
+    </div>
+  </section>
+
+  <section class="view" id="view-map" aria-label="Map" hidden>
+    <div id="map" class="map"></div>
+    <div class="map-msg" id="map-msg" hidden></div>
+
+    <div class="nav-sign" id="nav-sign" hidden aria-live="polite">
+      <div class="nav-sign-inner">
+        <span class="nav-arrow" id="nav-arrow"></span>
+        <div class="nav-words">
+          <p class="nav-dist" id="nav-dist"></p>
+          <p class="nav-text" id="nav-text"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-tools">
+      <button type="button" class="fab" id="layers-btn" aria-label="Map layers" aria-expanded="false" aria-controls="layers">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m2.5 12 9.5 5 9.5-5M2.5 16l9.5 5 9.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="fab" id="locate-btn" aria-label="Center on my location">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 1.5V5M12 19v3.5M1.5 12H5M19 12h3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="layers" id="layers" hidden>
+      <p class="layers-title">Map type</p>
+      <div class="layer-grid">
+        <button type="button" data-type="roadmap" aria-pressed="false">Map</button>
+        <button type="button" data-type="satellite" aria-pressed="false">Satellite</button>
+        <button type="button" data-type="hybrid" aria-pressed="false">Hybrid</button>
+        <button type="button" data-type="terrain" aria-pressed="false">Terrain</button>
+      </div>
+      <label class="toggle"><span>Traffic</span><input type="checkbox" id="traffic"></label>
+      <label class="toggle"><span>Location names</span><input type="checkbox" id="labels"></label>
+    </div>
+
+    <div class="panel map-card" id="map-card" hidden>
+      <button type="button" class="panel-main" id="mc-details">
+        <span class="panel-name" id="mc-name"></span>
+        <span class="panel-sub" id="mc-sub"></span>
+      </button>
+      <button type="button" class="sign-btn sign-sm" id="mc-route">
+        <span class="sign-inner">Directions</span>
+      </button>
+    </div>
+
+    <div class="panel route-panel" id="route-panel" hidden>
+      <div class="rp-head">
+        <div class="rp-title">
+          <p class="panel-name" id="rp-name"></p>
+          <p class="rp-stats" id="rp-stats"><b id="rp-time"></b><span id="rp-dist"></span><span id="rp-eta"></span></p>
+        </div>
+        <button type="button" class="icon-btn" id="rp-close" aria-label="Clear directions">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="rp-note" id="rp-note" hidden></p>
+      <div class="rp-actions">
+        <button type="button" class="sign-btn sign-sm" id="rp-start"><span class="sign-inner">Start</span></button>
+        <button type="button" class="btn" id="rp-retry" hidden>Try again</button>
+        <button type="button" class="btn" id="rp-end" hidden>End</button>
+        <button type="button" class="btn" id="rp-voice" aria-pressed="true" hidden>Voice on</button>
+        <button type="button" class="btn" id="rp-steps-btn" aria-expanded="false" aria-controls="rp-steps">Steps</button>
+        <a class="btn" id="rp-gmaps" target="_blank" rel="noopener">Google Maps</a>
+      </div>
+      <ol class="steps" id="rp-steps" hidden></ol>
+    </div>
+  </section>
+
+  <section class="view" id="view-saved" aria-label="Saved" hidden>
+    <div id="saved"></div>
+  </section>
+
+</main>
+
+<nav class="tabs" aria-label="Sections">
+  <button type="button" class="tab" data-tab="list" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="3.8" cy="6" r="1.4" fill="currentColor"/><circle cx="3.8" cy="12" r="1.4" fill="currentColor"/><circle cx="3.8" cy="18" r="1.4" fill="currentColor"/></svg>
+    <span>Locations</span>
+  </button>
+  <button type="button" class="tab" data-tab="map" aria-current="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="currentColor" stroke-width="2"/></svg>
+    <span>Map</span>
+  </button>
+  <button type="button" class="tab" data-tab="saved" aria-current="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .7-4.4 4.1 1.1 5.9L12 16.5l-5.3 2.9 1.1-5.9-4.4-4.1 6-.7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    <span>Saved</span>
+  </button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="d-name" tabindex="-1">
+  <div class="grab" aria-hidden="true"></div>
+  <div class="d-head">
+    <h2 id="d-name"></h2>
+    <button type="button" class="star" id="d-star" aria-pressed="false" aria-label="Save this location">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .7-4.4 4.1 1.1 5.9L12 16.5l-5.3 2.9 1.1-5.9-4.4-4.1 6-.7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <p class="d-op" id="d-op"></p>
+  <p class="d-dist" id="d-dist"></p>
+
+  <button type="button" class="sign-btn" id="d-route">
+    <span class="sign-inner">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5l7.5 7.6h-5V21.5h-5V10.1h-5z"/></svg>
+      <span class="sign-text"><b>Get directions</b><small>Route on the map from where you are</small></span>
+    </span>
+  </button>
+
+  <p class="d-small">Or open it in another app</p>
+  <div class="apps">
+    <a class="btn" id="d-google" target="_blank" rel="noopener">Google Maps</a>
+    <a class="btn" id="d-apple" target="_blank" rel="noopener">Apple Maps</a>
+    <a class="btn" id="d-waze" target="_blank" rel="noopener">Waze</a>
+  </div>
+  <div class="d-more">
+    <button type="button" class="btn" id="d-map">Show on map</button>
+    <button type="button" class="btn" id="d-share">Share</button>
+  </div>
+  <div class="coords">
+    <span id="d-coords"></span>
+    <button type="button" class="link" id="d-copy">Copy</button>
+  </div>
+  <button type="button" class="btn btn-ghost d-close" id="d-close">Close</button>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="locations.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
