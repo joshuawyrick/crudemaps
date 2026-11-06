@@ -82,6 +82,9 @@
       <button type="button" class="fab" id="layers-btn" aria-label="Map layers" aria-expanded="false" aria-controls="layers">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m2.5 12 9.5 5 9.5-5M2.5 16l9.5 5 9.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       </button>
+      <button type="button" class="fab" id="trucks-btn" aria-label="Show my trucks" aria-pressed="false" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="6.5" width="13.5" height="8" rx="4" fill="currentColor"/><path d="M16.2 9h3.1l2.7 3.1V15h-5.8z" fill="currentColor"/><path d="M1.5 15.6h20.5" stroke="currentColor" stroke-width="1.4"/><circle cx="5.2" cy="17.8" r="1.8" fill="currentColor"/><circle cx="10.4" cy="17.8" r="1.8" fill="currentColor"/><circle cx="19" cy="17.8" r="1.8" fill="currentColor"/></svg>
+      </button>
       <button type="button" class="fab" id="locate-btn" aria-label="Center on my location">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 1.5V5M12 19v3.5M1.5 12H5M19 12h3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
@@ -97,12 +100,17 @@
       </div>
       <label class="toggle"><span>Traffic</span><input type="checkbox" id="traffic"></label>
       <label class="toggle"><span>Location names</span><input type="checkbox" id="labels"></label>
+      <div id="trucks-opt" hidden>
+        <label class="toggle"><span>My trucks</span><input type="checkbox" id="trucks"></label>
+        <p class="trucks-status" id="trucks-status" aria-live="polite"></p>
+      </div>
     </div>
 
     <div class="panel map-card" id="map-card" hidden>
       <button type="button" class="panel-main" id="mc-details">
         <span class="panel-name" id="mc-name"></span>
         <span class="panel-sub" id="mc-sub"></span>
+        <span class="panel-sub" id="mc-place" hidden></span>
       </button>
       <button type="button" class="sign-btn sign-sm" id="mc-route">
         <span class="sign-inner">Directions</span>
@@ -189,6 +197,20 @@
   </div>
   <button type="button" class="btn btn-ghost d-close" id="d-close">Close</button>
 </section>
+
+<div class="dialog-wrap" id="pass" hidden>
+  <form class="dialog" id="pass-form" role="dialog" aria-modal="true" aria-labelledby="pass-title" autocomplete="on">
+    <h2 id="pass-title">Truck passcode</h2>
+    <p>Enter the passcode to see your trucks on the map. This phone will remember it.</p>
+    <input type="text" name="username" value="Crude Maps trucks" autocomplete="username" hidden>
+    <input id="pass-input" name="password" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode" required>
+    <p class="pass-err" id="pass-err" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="pass-cancel">Cancel</button>
+      <button type="submit" class="sign-btn sign-sm"><span class="sign-inner">Show trucks</span></button>
+    </div>
+  </form>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

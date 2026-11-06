@@ -306,7 +306,7 @@
     state.tab = t;
     for (const v of ['list', 'map', 'saved']) $('#view-' + v).hidden = v !== t;
     $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'));
-    if (t === 'map') MapView.show();
+    if (t === 'map') MapView.show(); else MapView.leave();
     if (t === 'saved') renderSaved();
   }
 
@@ -500,8 +500,9 @@
     }
 
     function show() {
-      init().then(() => { if (sel) refreshCard(); }).catch(() => {});
+      init().then(() => { if (sel) refreshCard(); pollTrucks(); }).catch(() => {});
     }
+    function leave() { clearTimeout(truckTimer); }
 
     function onPosition(me) {
       if (!map) return;
@@ -520,10 +521,171 @@
       if (nav) navUpdate(me);
     }
 
+    /* ---------- live trucks (Samsara, through our server) ---------- */
+    const TANKER = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="6.5" width="13.5" height="8" rx="4" fill="currentColor"/><path d="M16.2 9h3.1l2.7 3.1V15h-5.8z" fill="currentColor"/><path d="M1.5 15.6h20.5" stroke="currentColor" stroke-width="1.4"/><circle cx="5.2" cy="17.8" r="1.8" fill="currentColor"/><circle cx="10.4" cy="17.8" r="1.8" fill="currentColor"/><circle cx="19" cy="17.8" r="1.8" fill="currentColor"/></svg>';
+    const STALE_S = 30 * 60;
+    const TRUCK_POLL_MS = 15000;
+    const truckMarkers = new Map(); // id -> { m, el, t }
+    let trucksOn = !!(CFG.trucks && store.get('trucks', false) && store.get('truckPass', ''));
+    let truckData = [], truckTimer = null, truckBusy = false, fitTrucksNext = false;
+
+    const truckAge = t => t.time ? Math.max(0, (Date.now() - Date.parse(t.time)) / 1000) : Infinity;
+    function fmtAgo(sec) {
+      if (!isFinite(sec)) return 'time unknown';
+      if (sec < 60) return 'just now';
+      const m = Math.round(sec / 60);
+      if (m < 60) return m + ' min ago';
+      const h = Math.floor(m / 60);
+      return h < 24 ? h + ' hr ago' : Math.floor(h / 24) + ' days ago';
+    }
+    function truckSummary(t) {
+      const age = truckAge(t);
+      if (age > STALE_S) return 'Last seen ' + fmtAgo(age);
+      if ((t.mph || 0) >= 3) return `${Math.round(t.mph)} mph heading ${DIR_LONG[dirIdx(t.heading || 0)]}, ${fmtAgo(age)}`;
+      return 'Stopped, updated ' + fmtAgo(age);
+    }
+    function truckSel(id) {
+      const rec = truckMarkers.get(id);
+      return rec ? { truckId: id, name: rec.t.name, lat: rec.t.lat, lng: rec.t.lng, op: '' } : null;
+    }
+    function setTruckStatus(text) { $('#trucks-status').textContent = text || ''; }
+
+    function drawTrucks() {
+      if (!map) return;
+      const seen = new Set();
+      for (const t of truckData) {
+        seen.add(t.id);
+        const age = truckAge(t), stale = age > STALE_S, moving = !stale && (t.mph || 0) >= 3;
+        let rec = truckMarkers.get(t.id);
+        if (!rec) {
+          const el = document.createElement('div');
+          const m = new G.Marker({ map, position: { lat: t.lat, lng: t.lng }, content: el, title: t.name, zIndex: 70000 });
+          rec = { m, el, t };
+          m.addListener('click', () => select(truckSel(t.id), false));
+          truckMarkers.set(t.id, rec);
+        } else {
+          rec.m.position = { lat: t.lat, lng: t.lng };
+          if (!rec.m.map) rec.m.map = map;
+        }
+        rec.t = t;
+        rec.el.className = 'truck' + (stale ? ' stale' : moving ? ' moving' : '') + (sel && sel.truckId === t.id ? ' sel' : '');
+        rec.el.innerHTML = `<span class="truck-dir" style="transform:rotate(${Math.round(t.heading || 0)}deg)"></span><span class="truck-badge">${TANKER}</span><span class="truck-name">${esc(t.name)}</span>`;
+      }
+      for (const [id, rec] of truckMarkers) {
+        if (!seen.has(id)) { rec.m.map = null; truckMarkers.delete(id); }
+      }
+      if (sel && sel.truckId) {
+        const fresh = truckSel(sel.truckId);
+        if (fresh) Object.assign(sel, fresh); else select(null);
+      }
+    }
+    function clearTrucks() {
+      for (const rec of truckMarkers.values()) rec.m.map = null;
+      truckMarkers.clear();
+      if (sel && sel.truckId) select(null);
+    }
+    function fitTrucks() {
+      if (!map || !truckData.length) return;
+      if (truckData.length === 1) { map.panTo({ lat: truckData[0].lat, lng: truckData[0].lng }); map.setZoom(13); return; }
+      const lats = truckData.map(t => t.lat), lngs = truckData.map(t => t.lng);
+      map.fitBounds(
+        { north: Math.max(...lats), south: Math.min(...lats), east: Math.max(...lngs), west: Math.min(...lngs) },
+        { top: 70, right: 120, bottom: 150, left: 40 }
+      );
+    }
+
+    async function loadTrucks() {
+      if (truckBusy) return;
+      const pass = store.get('truckPass', '');
+      if (!pass) { setTrucks(false); askPass(); return; }
+      truckBusy = true;
+      if (!truckData.length) setTruckStatus('Loading trucks…');
+      try {
+        const r = await fetch('api/trucks', { headers: { 'x-crude-pass': pass }, cache: 'no-store' });
+        let body = {};
+        try { body = await r.json(); } catch (e) { /* not JSON */ }
+        if (!trucksOn) return;
+        if (r.status === 401) {
+          store.set('truckPass', '');
+          setTrucks(false);
+          askPass('That passcode doesn’t match. Try again.');
+          return;
+        }
+        if (!r.ok) {
+          const m = body.message || 'Couldn’t load trucks right now.';
+          setTruckStatus(m);
+          if (r.status === 429 || r.status === 503) { setTrucks(false, true); setTruckStatus(m); toast(m); }
+          return;
+        }
+        truckData = Array.isArray(body.trucks) ? body.trucks : [];
+        drawTrucks();
+        refreshCard();
+        const n = truckData.length;
+        setTruckStatus(n ? `${n} truck${n === 1 ? '' : 's'}, updated ${fmtClock(new Date(body.updated || Date.now()))}` : 'No trucks are reporting a location.');
+        if (fitTrucksNext) { fitTrucksNext = false; fitTrucks(); }
+      } catch (e) {
+        setTruckStatus(truckData.length ? 'No signal. Showing the last known positions.' : 'Couldn’t reach the truck feed. Check your signal.');
+      } finally {
+        truckBusy = false;
+      }
+    }
+    function pollTrucks() {
+      clearTimeout(truckTimer);
+      if (!trucksOn || !map || state.tab !== 'map' || document.visibilityState !== 'visible') return;
+      loadTrucks().finally(() => {
+        clearTimeout(truckTimer);
+        if (trucksOn) truckTimer = setTimeout(pollTrucks, TRUCK_POLL_MS);
+      });
+    }
+    function setTrucks(on, keepStatus) {
+      trucksOn = !!on;
+      store.set('trucks', trucksOn);
+      $('#trucks').checked = trucksOn;
+      $('#trucks-btn').setAttribute('aria-pressed', String(trucksOn));
+      if (trucksOn) { pollTrucks(); return; }
+      clearTimeout(truckTimer);
+      truckData = [];
+      clearTrucks();
+      if (!keepStatus) setTruckStatus('');
+    }
+    function wantTrucks() {
+      fitTrucksNext = true;
+      if (!store.get('truckPass', '')) { askPass(); return; }
+      if (!trucksOn) { setTrucks(true); return; }
+      if (truckData.length) { fitTrucksNext = false; fitTrucks(); }
+      pollTrucks();
+    }
+
+    /* passcode dialog */
+    const passWrap = $('#pass');
+    function askPass(err) {
+      $('#pass-err').textContent = err || '';
+      $('#pass-err').hidden = !err;
+      $('#pass-input').value = '';
+      passWrap.hidden = false;
+      setTimeout(() => $('#pass-input').focus(), 50);
+    }
+    function closePass() { passWrap.hidden = true; }
+    $('#pass-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = $('#pass-input').value.trim();
+      if (!v) return;
+      store.set('truckPass', v);
+      closePass();
+      $('#pass-input').blur();
+      fitTrucksNext = true;
+      setTrucks(true);
+    });
+    $('#pass-cancel').addEventListener('click', () => { closePass(); if (!store.get('truckPass', '')) setTrucks(false); });
+    passWrap.addEventListener('click', e => { if (e.target === passWrap) $('#pass-cancel').click(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !passWrap.hidden) $('#pass-cancel').click(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollTrucks(); });
+
     /* selection card */
     function select(p, pan) {
       if (sel && markers[sel.i]) { markers[sel.i].el.classList.remove('sel'); markers[sel.i].m.zIndex = null; }
       sel = p;
+      for (const [id, rec] of truckMarkers) rec.el.classList.toggle('sel', !!(p && p.truckId === id));
       if (p && markers[p.i]) {
         const el = markers[p.i].el;
         if (!el.querySelector('.pin-img')) el.insertAdjacentHTML('afterbegin', '<img class="pin-img" src="brand/pin.png" alt="">');
@@ -539,8 +701,21 @@
     function refreshCard() {
       const card = $('#map-card');
       if (!sel || route) { card.hidden = true; return; }
-      $('#mc-name').textContent = sel.name;
-      $('#mc-sub').textContent = state.me ? `${fmtMiles(sel.d)} ${DIR_LONG[sel.b]}, straight line` : (sel.op || 'Tap for details');
+      const place = $('#mc-place');
+      if (sel.truckId) {
+        const rec = truckMarkers.get(sel.truckId);
+        if (!rec) { card.hidden = true; return; }
+        const t = rec.t;
+        $('#mc-name').textContent = t.name;
+        $('#mc-sub').textContent = truckSummary(t);
+        const away = state.me ? `${fmtMiles(miles(state.me, t))} ${DIR_LONG[dirIdx(bearing(state.me, t))]} of you` : '';
+        place.textContent = [t.place, away].filter(Boolean).join('. ');
+        place.hidden = !place.textContent;
+      } else {
+        $('#mc-name').textContent = sel.name;
+        $('#mc-sub').textContent = state.me ? `${fmtMiles(sel.d)} ${DIR_LONG[sel.b]}, straight line` : (sel.op || 'Tap for details');
+        place.hidden = true;
+      }
       card.hidden = false;
     }
 
@@ -549,6 +724,10 @@
       $$('.layer-grid button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.type === state.mapType)));
       $('#traffic').checked = state.traffic;
       $('#labels').checked = state.labels;
+      $('#trucks-opt').hidden = !CFG.trucks;
+      $('#trucks-btn').hidden = !CFG.trucks;
+      $('#trucks').checked = trucksOn;
+      $('#trucks-btn').setAttribute('aria-pressed', String(trucksOn));
     }
     function setMapType(t) {
       state.mapType = t; store.set('mapType', t);
@@ -870,7 +1049,13 @@
     $('#traffic').addEventListener('change', e => setTraffic(e.target.checked));
     $('#labels').addEventListener('change', e => setLabels(e.target.checked));
     $('#locate-btn').addEventListener('click', locate);
-    $('#mc-details').addEventListener('click', () => { if (sel) openPlace(sel.i); });
+    $('#mc-details').addEventListener('click', () => {
+      if (!sel) return;
+      if (sel.truckId) { map.panTo({ lat: sel.lat, lng: sel.lng }); if (map.getZoom() < 15) map.setZoom(15); }
+      else openPlace(sel.i);
+    });
+    $('#trucks').addEventListener('change', e => { if (e.target.checked) wantTrucks(); else setTrucks(false); });
+    $('#trucks-btn').addEventListener('click', () => { closeLayers(); wantTrucks(); });
     $('#mc-route').addEventListener('click', () => { if (sel) routeTo(sel); });
     $('#rp-close').addEventListener('click', clearRoute);
     $('#rp-start').addEventListener('click', startNav);
@@ -889,7 +1074,7 @@
     syncLayerUI();
 
     return {
-      show, onPosition, routeTo,
+      show, leave, onPosition, routeTo,
       focusMe: () => { setTab('map'); init().then(locate).catch(() => {}); },
       showOnMap: p => { setTab('map'); init().then(() => { if (!route) select(p, true); else map.panTo({ lat: p.lat, lng: p.lng }); }).catch(() => {}); }
     };

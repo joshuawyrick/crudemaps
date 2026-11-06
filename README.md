@@ -10,6 +10,8 @@ A phone web app (installable on iPhone) for finding oil field locations and gett
 - When a pin is past the end of the mapped roads, a dashed line shows the last stretch.
 - Map layers: Hybrid (the default), Map, Satellite, Terrain, plus Traffic and location names.
 - Hand off to Google Maps, Apple Maps or Waze with one tap.
+- **Live trucks** from Samsara: each truck's position, heading, speed and address, refreshed every 15 seconds.
+  Tap a truck for details or directions to it. Locked behind a passcode.
 - Star locations to keep them on the Saved tab. The list works offline once the app has loaded.
 
 ## How it runs
@@ -25,6 +27,12 @@ Start it with `npm start` (or `node server.js`). It listens on `PORT`, or 5000 b
 | --- | --- | --- |
 | `GOOGLE_MAPS_API_KEY` | Yes | Google Maps Platform key with **Maps JavaScript API** and **Routes API** enabled |
 | `GOOGLE_MAP_ID` | No | A Map ID from Google Cloud. Defaults to Google's demo map ID |
+| `SAMSARA_API_TOKEN` | For live trucks | Samsara API token. Read-only access to vehicle stats is enough |
+| `APP_PASSCODE` | For live trucks | Passcode the app asks for before it shows trucks. Pick something hard to guess |
+| `SAMSARA_API_BASE` | No | Only for EU Samsara accounts: `https://api.eu.samsara.com` |
+
+The Samsara token never leaves the server. Phones get truck positions from `/api/trucks`, which needs the
+passcode and locks a device out for 15 minutes after 8 wrong tries. Samsara is asked at most once every 10 seconds.
 
 ### Protect the Google key
 

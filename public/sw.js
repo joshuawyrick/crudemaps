@@ -1,6 +1,6 @@
 /* Crude Maps service worker: keeps the app and location list working with weak or no signal.
    Bump VERSION whenever files change so phones pick up the new copy. */
-const VERSION = 'crude-maps-v3';
+const VERSION = 'crude-maps-v4';
 const SHELL = [
   './',
   './index.html',
@@ -36,6 +36,7 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Google Maps and other sites go straight to the network
+  if (url.pathname.startsWith('/api/')) return;    // live truck data is never saved offline
   event.respondWith(networkFirst(req));
 });
 

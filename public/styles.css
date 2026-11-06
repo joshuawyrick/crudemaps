@@ -359,3 +359,54 @@ body.nav-on .toast { top: calc(var(--safe-t) + 190px); }
   .sheet, .sheet.open, .scrim, .toast { transition: none; }
   .gps[data-state="finding"] .gps-dot { animation: none; }
 }
+
+/* ---------- live trucks ---------- */
+.fab[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--gold); }
+.trucks-status { margin: 0 0 4px; font-size: 13px; line-height: 1.3; color: var(--muted); }
+.trucks-status:empty { display: none; }
+
+.truck { position: relative; width: 30px; height: 30px; transform: translateY(15px); cursor: pointer; }
+.truck-badge {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  border-radius: 50%; background: var(--ink); border: 2px solid var(--gold); color: var(--gold);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .92), 0 2px 5px rgba(0, 0, 0, .45);
+}
+.truck-badge svg { width: 19px; height: 19px; }
+.truck-dir { position: absolute; inset: -14px; display: none; pointer-events: none; }
+.truck.moving .truck-dir { display: block; }
+.truck-dir::before {
+  content: ""; position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 12px solid var(--ink);
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff);
+}
+.truck-name {
+  position: absolute; left: 36px; top: 50%; transform: translateY(-50%);
+  padding: 4px 7px 2px; border-radius: 6px;
+  background: var(--ink); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+  font: 800 12px/1.1 "Overpass", -apple-system, sans-serif; white-space: nowrap;
+}
+.truck.stale .truck-badge { background: #6C6A64; border-color: #D9D6CF; color: #F1EFEA; }
+.truck.stale .truck-name { background: var(--paper); color: var(--muted); }
+.truck.sel .truck-badge { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--gold), 0 2px 6px rgba(0, 0, 0, .5); }
+.truck.sel .truck-name { background: var(--gold); color: var(--ink); }
+
+/* passcode dialog */
+.dialog-wrap {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: calc(var(--safe-t) + 70px) 16px 16px;
+  background: rgba(17, 17, 17, .35);
+}
+.dialog { width: 100%; max-width: 420px; margin: 0; padding: 20px; border-radius: 18px; background: var(--paper); box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+.dialog h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+.dialog p { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); }
+.dialog input[type="password"] {
+  width: 100%; height: 52px; margin-top: 16px; padding: 3px 14px 0;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--wash);
+  font-size: 18px; -webkit-appearance: none; appearance: none;
+}
+.dialog input[type="password"]:focus { outline: none; background: var(--paper); border-color: var(--gold-lo); box-shadow: 0 0 0 3px rgba(233, 173, 48, .3); }
+.dialog .pass-err { color: #8E2A1F; font-weight: 600; }
+.dialog-actions { display: flex; gap: 10px; margin-top: 18px; }
+.dialog-actions > * { flex: 1; }
+.dialog-actions .sign-btn .sign-inner { height: 42px; padding-top: 3px; padding-bottom: 0; }
